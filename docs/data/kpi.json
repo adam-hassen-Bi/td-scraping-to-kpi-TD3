@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-10-21T10:08:32Z",
+  "kpi_label": "% of postings mentioning 'python'",
+  "kpi_value": 0.667,
+  "n_postings_analyzed": 3,
+  "n_matching": 2,
+  "top_skills": [
+    {
+      "skill": "SQL",
+      "count": 2
+    },
+    {
+      "skill": "Python",
+      "count": 1
+    },
+    {
+      "skill": "Docker",
+      "count": 1
+    },
+    {
+      "skill": "AWS",
+      "count": 1
+    },
+    {
+      "skill": "python",
+      "count": 1
+    },
+    {
+      "skill": "PyTorch",
+      "count": 1
+    },
+    {
+      "skill": "computer vision",
+      "count": 1
+    },
+    {
+      "skill": "Git",
+      "count": 1
+    },
+    {
+      "skill": "Power BI",
+      "count": 1
+    },
+    {
+      "skill": "Excel",
+      "count": 1
+    }
+  ],
+  "avg_skills_per_posting": 3.67
+}
