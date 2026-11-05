@@ -2,60 +2,285 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Scraping to KPI lab</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skills in Data Job Postings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-  #kpi-card { padding: 1rem; border: 2px solid #0d7c9e; border-radius: 8px; }
-  #kpi-card .value { font-size: 2rem; font-weight: bold; color: #0d7c9e; }
-  #kpi-card .label { font-size: 0.9rem; color: #666; }
-  canvas { margin-top: 1.5rem; }
-  #updated { color: #666; font-size: 0.85rem; }
+  :root {
+    color-scheme: light;
+    --bg: #f4f3ef; --surface: #fcfcfb; --border: #e4e2dc; --grid: #ebe9e3;
+    --text: #0b0b0b; --text-2: #52514e; --text-3: #7d7c77;
+    --accent: #2a78d6; --accent-strong: #104281; --accent-soft: #cde2fb;
+    --good: #0f7a3a; --good-bg: #e3f3e8; --warn: #8a5a00; --warn-bg: #fdf0d2;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121211; --surface: #1a1a19; --border: #2c2c2a; --grid: #262624;
+      --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86;
+      --accent: #5598e7; --accent-strong: #9ec5f4; --accent-soft: #1c3350;
+      --good: #6fd391; --good-bg: #16301f; --warn: #f1c25b; --warn-bg: #352a10; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --border: #2c2c2a; --grid: #262624;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86;
+    --accent: #5598e7; --accent-strong: #9ec5f4; --accent-soft: #1c3350;
+    --good: #6fd391; --good-bg: #16301f; --warn: #f1c25b; --warn-bg: #352a10; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 16px 48px; }
+  .num { font-variant-numeric: tabular-nums; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin: 0 0 6px; }
+  h1 { font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; margin: 0; letter-spacing: -.01em; }
+  .lede { margin: 8px 0 0; color: var(--text-2); max-width: 640px; }
+  .status { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+  .badge.good { color: var(--good); background: var(--good-bg); }
+  .badge.warn { color: var(--warn); background: var(--warn-bg); }
+  .updated { font-size: 13px; color: var(--text-3); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); min-width: 0; }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .card .sub { font-size: 13px; color: var(--text-3); margin: 2px 0 14px; }
+  .grid { display: grid; gap: 16px; }
+  .kpis { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .g-7-5 { grid-template-columns: minmax(0,7fr) minmax(0,5fr); margin-top: 16px; }
+  @media (max-width: 880px) { .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } .g-7-5 { grid-template-columns: 1fr; } }
+  @media (max-width: 480px) { .kpis { grid-template-columns: 1fr; } .bars li { grid-template-columns: 96px 1fr 86px; gap: 6px; } }
+  .kpi .k { font-size: 13px; color: var(--text-3); display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .kpi .v { font-size: 34px; font-weight: 700; line-height: 1.15; margin-top: 6px; }
+  .kpi .v small { font-size: 15px; font-weight: 500; color: var(--text-2); }
+  .kpi .d { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+  .kpi .ci { margin-top: 10px; }
+  .ci-track { position: relative; height: 8px; background: var(--grid); border-radius: 999px; }
+  .ci-band { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-radius: 999px; }
+  .ci-pt { position: absolute; top: -3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
+  .ci-lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  select { font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px 6px; max-width: 60%; }
+
+  /* bars */
+  .bars { list-style: none; margin: 0; padding: 0; }
+  .bars li { display: grid; grid-template-columns: 130px 1fr 92px; gap: 10px; align-items: center; height: 28px; font-size: 13px; border-radius: 6px; cursor: pointer; padding: 0 4px; }
+  .bars li:hover, .bars li:focus-visible { background: var(--grid); outline: none; }
+  .bars .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bars li.on .nm { font-weight: 700; }
+  .bars .track { height: 14px; position: relative; }
+  .bars .bar { height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; transition: width .3s ease; }
+  .bars li.on .bar { background: var(--accent-strong); }
+  .bars .val { text-align: right; color: var(--text-2); white-space: nowrap; }
+  .bars .val b { color: var(--text); font-weight: 600; }
+  .note { font-size: 13px; color: var(--text-3); margin-top: 10px; }
+
+  /* quality */
+  .qrow { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--grid); font-size: 14px; }
+  .qrow:last-child { border-bottom: 0; }
+  .qrow span:first-child { color: var(--text-2); }
+  .qrow b { font-weight: 600; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 6px; }
+  .compare > div { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .compare .k { font-size: 12px; color: var(--text-3); }
+  .compare .v { font-size: 22px; font-weight: 700; }
+  .compare .bad .v { color: var(--warn); }
+  .dist { display: flex; align-items: flex-end; gap: 6px; height: 90px; margin-top: 8px; }
+  .dist div { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 12px; color: var(--text-3); }
+  .dist i { display: block; width: 100%; max-width: 38px; background: var(--accent); border-radius: 4px 4px 0 0; }
+  .dist b { color: var(--text-2); font-weight: 600; font-size: 12px; }
+
+  .steps { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin-top: 6px; counter-reset: s; }
+  @media (max-width: 880px) { .steps { grid-template-columns: 1fr 1fr; } }
+  .steps div { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--text-2); }
+  .steps div::before { counter-increment: s; content: counter(s); display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; font-size: 12px; margin-bottom: 6px; }
+  .steps b { display: block; color: var(--text); font-weight: 600; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+  .two h3 { font-size: 14px; margin: 14px 0 6px; }
+  .two ul { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 14px; }
+  .two li { margin: 3px 0; }
+  .msg { padding: 40px; text-align: center; color: var(--text-2); }
+  #tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.15); padding: 8px 10px; font-size: 13px; opacity: 0; transition: opacity .1s; }
+  footer { margin-top: 28px; font-size: 12px; color: var(--text-3); text-align: center; }
 </style>
 </head>
 <body>
-  <h1>Scraping to KPI lab</h1>
-  <p>One real KPI, computed from LLM-extracted skills across real scraped postings — see <code>data/extracted.json</code> and <code>compute_kpi.py</code>.</p>
-  <div id="kpi-card">Loading...</div>
-  <canvas id="skillsChart" height="320"></canvas>
-  <p id="updated"></p>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">For ENSIM's curriculum committee · Scraping to KPI</p>
+      <h1>Which skills do data job postings actually ask for?</h1>
+      <p class="lede">Real postings for data engineer, data scientist and data analyst roles in France, read by a local language model that lists the hard skills each one asks for, then counted.</p>
+    </div>
+    <div class="status">
+      <span class="badge" id="sample"></span>
+      <span class="updated num" id="updated"></span>
+    </div>
+  </header>
+
+  <div id="app">
+    <div class="grid kpis" id="kpis"></div>
+
+    <div class="grid g-7-5">
+      <section class="card">
+        <h2>Most requested skills</h2>
+        <p class="sub">Share of postings that mention each skill, after merging spelling variants. Click a skill to track it in the first card.</p>
+        <ul class="bars" id="bars"></ul>
+        <p class="note" id="barsNote"></p>
+      </section>
+      <section class="card">
+        <h2>How far can you trust these numbers?</h2>
+        <p class="sub">What the model returned, and what had to be fixed before counting.</p>
+        <div id="quality"></div>
+        <div class="compare" id="compare"></div>
+        <p class="note" id="compareNote"></p>
+        <h2 style="margin-top:16px">Skills found per posting</h2>
+        <div class="dist" id="dist"></div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <h2>How the number is built</h2>
+      <div class="steps">
+        <div><b>Acquire</b>Postings fetched from Indeed France, after a robots.txt check on the demo page.</div>
+        <div><b>Structure</b>A local LLM (<span id="model">qwen3:8b</span>, Ollama) turns each description into a list of hard skills.</div>
+        <div><b>Check</b>Spelling variants merged, soft skills and job titles removed, empty extractions counted.</div>
+        <div><b>Count</b>One skill counts once per posting; whole-skill match, not substring.</div>
+        <div><b>Publish</b>Only the counts below leave the laptop — never a posting.</div>
+      </div>
+      <div class="two">
+        <div>
+          <h3>Limits</h3>
+          <ul>
+            <li id="limitN"></li>
+            <li>One job board, one search on one day: not a census of the French market.</li>
+            <li>The model can miss or invent a skill; a classmate cross-checked the raw extraction.</li>
+            <li>A skill being mentioned says nothing about the level required.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>What is published, and what is not</h3>
+          <ul>
+            <li>Published: counts per skill, the two KPIs, quality counters.</li>
+            <li>Never published: posting titles, company names, descriptions, per-posting skill lists — they stay in <code>data/</code>, which is git-ignored.</li>
+            <li>Indeed's terms forbid redistributing scraped postings; aggregates do not reproduce them.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>Computed locally with Ollama and Python, published with GitHub Pages · No posting text is stored in this repository</footer>
+</div>
+<div id="tip"></div>
 
 <script>
-fetch('data/kpi.json')
-  .then(r => r.json())
-  .then(data => {
-    if (!data.n_postings_analyzed) {
-      document.getElementById('kpi-card').innerHTML = '<p>No KPI computed yet -- run extract_skills.py then compute_kpi.py.</p>';
-      return;
+(function () {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const pct = v => Math.round(v * 100) + ' %';
+  const tip = $('tip');
+
+  // 95 % Wilson score interval for a proportion k/n: honest error bars for a
+  // share computed on a handful of postings.
+  function wilson(k, n, z = 1.96) {
+    if (!n) return [0, 0];
+    const p = k / n, d = 1 + z * z / n;
+    const c = (p + z * z / (2 * n)) / d;
+    const h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+    return [Math.max(0, c - h), Math.min(1, c + h)];
+  }
+  function ciHtml(k, n) {
+    const [lo, hi] = wilson(k, n);
+    return `<div class="ci" title="95 % confidence interval">
+      <div class="ci-track"><span class="ci-band" style="left:${lo * 100}%;width:${(hi - lo) * 100}%"></span><span class="ci-pt" style="left:${k / n * 100}%"></span></div>
+      <div class="ci-lbl num"><span>likely between ${pct(lo)}</span><span>and ${pct(hi)}</span></div></div>`;
+  }
+
+  fetch('data/kpi.json', { cache: 'no-cache' })
+    .then(r => r.json())
+    .then(render)
+    .catch(err => { $('app').innerHTML = `<div class="card msg">Could not load <code>data/kpi.json</code> (${esc(err)}). Run <code>scripts/compute_kpi.py</code>, then serve <code>docs/</code> over HTTP (<code>python3 serve.py</code>).</div>`; });
+
+  function render(d) {
+    const n = d.n_postings_analyzed || 0;
+    if (!n || !d.kpis) { $('app').innerHTML = '<div class="card msg">No KPI computed yet — run <code>./run_all.sh</code>.</div>'; return; }
+    const b = $('sample');
+    if (n >= 12) { b.className = 'badge good'; b.textContent = `● ${n} postings analyzed`; }
+    else { b.className = 'badge warn'; b.textContent = `▲ Pilot sample: ${n} postings — not decision-grade`; }
+    const t = new Date(d.generated_at);
+    $('updated').textContent = isNaN(t) ? '' : 'Computed ' + t.toLocaleDateString('en-GB', { dateStyle: 'medium' });
+    $('model').textContent = d.model || 'local LLM';
+    $('limitN').textContent = `${n} postings: a single posting moves every share by ${Math.round(100 / n)} points. The bands under each KPI show the 95 % range.`;
+
+    const skills = d.top_skills || [];
+    const [k1, k2] = d.kpis;
+    let tracked = k1.label.replace('Postings asking for ', '');
+
+    function renderKpis() {
+      const s = skills.find(x => x.skill === tracked);
+      const kn = s ? s.postings : k1.n_matching;
+      $('kpis').innerHTML = `
+        <div class="card kpi"><div class="k"><span>Postings asking for</span>
+          <select id="skillSel" aria-label="Skill tracked">${skills.map(x => `<option${x.skill === tracked ? ' selected' : ''}>${esc(x.skill)}</option>`).join('')}</select></div>
+          <div class="v num">${pct(kn / n)}</div><div class="d num">${kn} of ${n} postings</div>${ciHtml(kn, n)}</div>
+        <div class="card kpi"><div class="k"><span>Postings asking for a cloud provider</span></div>
+          <div class="v num">${pct(k2.value)}</div><div class="d num">${k2.n_matching} of ${n} · ${Object.entries(k2.split || {}).map(([c, v]) => `${esc(c)} ${v}`).join(' · ')}</div>${ciHtml(k2.n_matching, n)}</div>
+        <div class="card kpi"><div class="k"><span>Distinct skills found</span></div>
+          <div class="v num">${d.n_distinct_skills}</div><div class="d">after merging spelling variants</div></div>
+        <div class="card kpi"><div class="k"><span>Skills per posting</span></div>
+          <div class="v num">${d.avg_skills_per_posting} <small>on average</small></div><div class="d">${d.extraction && d.extraction.avg_seconds_per_posting ? d.extraction.avg_seconds_per_posting + ' s of LLM time per posting' : ''}</div></div>`;
+      $('skillSel').addEventListener('change', e => { tracked = e.target.value; renderKpis(); renderBars(); });
     }
 
-    document.getElementById('kpi-card').innerHTML = `
-      <div class="value">${(data.kpi_value * 100).toFixed(0)}%</div>
-      <div class="label">${data.kpi_label} (${data.n_matching} of ${data.n_postings_analyzed} postings)</div>
-      <div class="label">Average ${data.avg_skills_per_posting} distinct skills extracted per posting</div>
-    `;
+    function renderBars() {
+      const max = Math.max(...skills.map(s => s.share), 0.01);
+      $('bars').innerHTML = skills.map((s, i) => `
+        <li tabindex="0" data-i="${i}" class="${s.skill === tracked ? 'on' : ''}">
+          <span class="nm">${esc(s.skill)}</span>
+          <span class="track"><span class="bar" style="display:block;width:${s.share / max * 100}%"></span></span>
+          <span class="val num"><b>${pct(s.share)}</b> · ${s.postings}/${n}</span></li>`).join('');
+      $('bars').querySelectorAll('li').forEach(li => {
+        const s = skills[+li.dataset.i];
+        const pick = () => { tracked = s.skill; renderKpis(); renderBars(); };
+        li.addEventListener('click', pick);
+        li.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+        li.addEventListener('mousemove', e => {
+          const [lo, hi] = wilson(s.postings, n);
+          tip.innerHTML = `<b>${esc(s.skill)}</b><br>${s.postings} of ${n} postings (${pct(s.share)})<br><span style="color:var(--text-3)">95 % range ${pct(lo)}–${pct(hi)}</span>`;
+          tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 14, innerWidth - 220) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+        });
+        li.addEventListener('mouseleave', () => tip.style.opacity = 0);
+      });
+      $('barsNote').textContent = skills.length < d.n_distinct_skills
+        ? `Top ${skills.length} of ${d.n_distinct_skills} distinct skills shown.` : `All ${skills.length} skills shown.`;
+    }
 
-    const top = data.top_skills || [];
-    new Chart(document.getElementById('skillsChart'), {
-      type: 'bar',
-      data: {
-        labels: top.map(s => s.skill),
-        datasets: [{ label: 'Postings mentioning this skill', data: top.map(s => s.count), backgroundColor: '#0d7c9e' }],
-      },
-      options: {
-        indexAxis: 'y',
-        plugins: {
-          legend: { display: false },
-          title: { display: true, text: 'Most-mentioned skills across analyzed postings' },
-        },
-      },
-    });
+    const q = d.quality || {};
+    const row = (k, v) => `<div class="qrow"><span>${k}</span><b class="num">${v}</b></div>`;
+    $('quality').innerHTML =
+      row('Raw spellings returned by the model', q.n_raw_distinct_strings) +
+      row('Distinct skills after merging variants', q.n_after_normalization) +
+      row('Skills that came back in several spellings', q.n_skills_with_several_spellings) +
+      row('Soft skills / job titles removed', q.n_non_skill_mentions_excluded ?? 0) +
+      row('Postings where no skill was found', q.n_postings_without_skill);
+    $('compare').innerHTML = `
+      <div class="${k1.naive_value !== k1.value ? 'bad' : ''}"><div class="k">TD's first formula (substring)</div><div class="v num">${pct(k1.naive_value)}</div></div>
+      <div><div class="k">Corrected (whole skill)</div><div class="v num">${pct(k1.value)}</div></div>`;
+    $('compareNote').textContent = `KPI "${k1.label.toLowerCase()}". ` + (k1.naive_value !== k1.value
+      ? 'The two differ: a substring match also counts skills that merely contain the word.'
+      : 'Identical here — but for a short name like "R", a substring match would also count Docker, Spark, PowerBI…');
 
-    document.getElementById('updated').textContent = `Data last computed ${data.generated_at || '(see script output)'}`;
-  })
-  .catch(err => {
-    document.getElementById('kpi-card').innerHTML = '<p>Could not load KPI (' + err + ').</p>';
-  });
+    const dist = d.skills_per_posting_distribution || [];
+    const dmax = Math.max(...dist.map(x => x.postings), 1);
+    $('dist').innerHTML = dist.map(x => `<div><b class="num">${x.postings}</b><i style="height:${x.postings / dmax * 60}px"></i><span class="num">${x.n_skills}</span></div>`).join('') +
+      '<div style="flex:0 0 auto;align-self:flex-end;padding-left:6px">skills</div>';
+
+    renderKpis(); renderBars();
+  }
+})();
 </script>
 </body>
 </html>
