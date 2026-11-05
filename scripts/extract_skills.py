@@ -46,7 +46,7 @@ def main():
         rows = [r for r in csv.DictReader(f) if r.get("description", "").strip()]
     rows = rows[:N_POSTINGS]
     print(f"Extracting skills from {len(rows)} postings (this takes real time -- "
-          f"expect roughly 10-40 seconds per posting on a CPU-only laptop)...")
+          f"roughly 10-40 s per posting on a CPU-only laptop, ~2 s on an Apple Silicon Mac)...")
 
     postings = []
     start = time.time()
@@ -62,12 +62,15 @@ def main():
             "required_skills": skills,
         })
 
-    with open("data/extracted.json", "w") as f:
+    total = time.time() - start
+    with open("data/extracted.json", "w", encoding="utf-8") as f:
         json.dump({
             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "model": MODEL,
+            "max_chars_per_posting": MAX_CHARS,
+            "avg_seconds_per_posting": round(total / len(postings), 1) if postings else 0,
             "postings": postings,
         }, f, indent=2, ensure_ascii=False)
-    total = time.time() - start
     print(f"\nWrote data/extracted.json ({len(postings)} postings, {total:.0f}s total, "
           f"{total/len(postings):.1f}s/posting average)")
 

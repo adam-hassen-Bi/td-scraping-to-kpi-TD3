@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 URL = "https://fr.wikipedia.org/wiki/Le_Mans"
-USER_AGENT = "ENSIM-BI-course-TD (educational, contact your-email@univ-lemans.fr)"
+USER_AGENT = "ENSIM-BI-course-TD/1.0 (educational student project, Le Mans Universite)"
 
 def robots_allows(url, user_agent="*"):
     # Minimal, real check -- confirmed by hand against fr.wikipedia.org/robots.txt
